@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Screen Audience</title>
+<style>
+  :root {
+    color-scheme: light;
+    --page: #f9f9f7; --surface: #fcfcfb; --ink: #0b0b0b; --ink-2: #52514e; --muted: #898781;
+    --grid: #e1e0d9; --border: rgba(11,11,11,.10); --series-1: #2a78d6;
+    --good: #0ca30c; --good-text: #006300; --critical: #d03b3b;
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --page: #0d0d0d; --surface: #1a1a19; --ink: #f0efec; --ink-2: #c3c2b7; --muted: #898781;
+      --grid: #2c2c2a; --border: rgba(255,255,255,.10); --series-1: #3987e5; --good-text: #0ca30c;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --page: #0d0d0d; --surface: #1a1a19; --ink: #f0efec; --ink-2: #c3c2b7; --muted: #898781;
+    --grid: #2c2c2a; --border: rgba(255,255,255,.10); --series-1: #3987e5; --good-text: #0ca30c;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--page); color: var(--ink); padding: 24px; }
+  header { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
+  h1 { margin: 0; font-size: 22px; }
+  h2 { margin: 0 0 12px; font-size: 15px; }
+  .muted { color: var(--muted); }
+  .row { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-bottom: 16px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px; min-width: 0; }
+  .label { color: var(--ink-2); font-size: 13px; }
+  .big { font-size: 44px; font-weight: 600; line-height: 1.1; margin-top: 4px; }
+  .value { font-size: 28px; font-weight: 600; margin-top: 4px; }
+  .status { display: inline-flex; gap: 6px; align-items: center; font-size: 13px; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; }
+  .ok { color: var(--good-text); } .ok .dot { background: var(--good); }
+  .bad { color: var(--critical); } .bad .dot { background: var(--critical); }
+  .bars { display: grid; grid-template-columns: repeat(24, 1fr); gap: 2px; align-items: end; height: 140px; border-bottom: 1px solid var(--grid); }
+  .bar { background: var(--series-1); border-radius: 4px 4px 0 0; min-height: 0; position: relative; }
+  .bar:hover::after { content: attr(data-tip); position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%);
+    background: var(--surface); color: var(--ink); border: 1px solid var(--border); padding: 4px 8px; border-radius: 6px; white-space: nowrap; font-size: 12px; margin-bottom: 4px; }
+  .hours { display: grid; grid-template-columns: repeat(24, 1fr); gap: 2px; font-size: 11px; color: var(--muted); margin-top: 4px; font-variant-numeric: tabular-nums; }
+  .hours span { text-align: center; }
+  table { width: 100%; border-collapse: collapse; }
+  td { padding: 6px 0; border-bottom: 1px solid var(--grid); }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  img.preview { max-width: 100%; border-radius: 8px; display: block; }
+  .grid2 { display: grid; grid-template-columns: 2fr 1fr; gap: 12px; }
+  @media (max-width: 760px) { .grid2 { grid-template-columns: 1fr; } body { padding: 16px; } .hours span:nth-child(odd) { visibility: hidden; } }
+</style>
+</head>
+<body>
+<header>
+  <h1 id="title">Screen audience</h1>
+  <span class="muted" id="updated"></span>
+</header>
+
+<div class="row">
+  <div class="card"><div class="label">People in view now</div><div class="big" id="people">–</div></div>
+  <div class="card"><div class="label">Looking at the screen now</div><div class="big" id="viewers-now">–</div></div>
+  <div class="card"><div class="label">Impressions today</div><div class="value" id="impressions">–</div></div>
+  <div class="card"><div class="label">Viewers today</div><div class="value" id="viewers">–</div><div class="muted" id="rate"></div></div>
+  <div class="card"><div class="label">Avg. attention today</div><div class="value" id="attention">–</div></div>
+  <div class="card"><div class="label">Branded bags today</div><div class="value" id="branded">–</div></div>
+</div>
+
+<div class="grid2">
+  <div class="card">
+    <h2>Viewers by hour, today</h2>
+    <div class="bars" id="bars" role="img" aria-label="Viewers by hour today"></div>
+    <div class="hours" id="hours"></div>
+  </div>
+  <div class="card">
+    <h2>System</h2>
+    <table><tbody id="system"></tbody></table>
+  </div>
+</div>
+
+<div class="grid2" style="margin-top:12px">
+  <div class="card" id="preview-card" hidden><h2>Camera preview (installation mode)</h2><img class="preview" id="preview" alt="Annotated camera preview"></div>
+  <div class="card"><h2>Brands today</h2><table><tbody id="brands"></tbody></table></div>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const int = (v) => (v == null ? "–" : Math.round(v).toLocaleString());
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"})[c]);
+const badge = (ok, yes, no) => `<span class="status ${ok ? "ok" : "bad"}"><span class="dot"></span>${ok ? yes : no}</span>`;
+
+for (let h = 0; h < 24; h++) $("hours").insertAdjacentHTML("beforeend", `<span>${String(h).padStart(2, "0")}</span>`);
+
+async function refresh() {
+  try {
+    const r = await fetch("/api/status", { cache: "no-store" });
+    const d = await r.json();
+    const s = d.status, t = d.today;
+    if (d.screen) $("title").textContent = d.screen;
+    $("people").textContent = int(s.people_now);
+    $("viewers-now").textContent = int(s.viewers_now);
+    $("impressions").textContent = int(t.impressions);
+    $("viewers").textContent = int(t.viewers);
+    $("rate").textContent = `${(t.view_rate * 100).toFixed(1)}% view rate`;
+    $("attention").textContent = `${t.avg_attention_seconds.toFixed(1)} s`;
+    $("branded").textContent = int(t.branded_bag_carriers);
+    const max = Math.max(1, ...t.hourly.map((h) => h.viewers));
+    $("bars").innerHTML = t.hourly.map((h) =>
+      `<div class="bar" style="height:${(h.viewers / max) * 100}%" data-tip="${String(h.hour).padStart(2, "0")}:00 · ${h.viewers} viewers / ${h.impressions} people"></div>`).join("");
+    $("system").innerHTML = [
+      ["Camera", s.mode === "simulator" ? "Simulated" : badge(s.camera_ok, "OK", esc(s.camera_error || "No signal"))],
+      ["Central server", badge(s.server_connected, "Connected", esc(s.server_error || "Not connected"))],
+      ["Processing", `${s.fps} fps`],
+      ["Events waiting to upload", int(s.queue_depth)],
+      ["Demographics", s.demographics_enabled ? "On" : "Off"],
+      ["Bag detection", s.bag_detection_enabled ? "On" : "Off"],
+      ["Brand recognition", s.brands_enabled ? "On" : "Off"],
+    ].map(([k, v]) => `<tr><td>${k}</td><td class="num">${v}</td></tr>`).join("");
+    $("brands").innerHTML = t.brands.length
+      ? t.brands.map(([b, n]) => `<tr><td>${esc(b)}</td><td class="num">${int(n)}</td></tr>`).join("")
+      : `<tr><td class="muted">No branded bags yet today.</td></tr>`;
+    $("preview-card").hidden = !d.preview;
+    if (d.preview) $("preview").src = "/preview.jpg?t=" + Date.now();
+    $("updated").textContent = "Updated " + new Date().toLocaleTimeString();
+  } catch (e) {
+    $("updated").textContent = "Agent not responding";
+  }
+}
+refresh();
+setInterval(refresh, 2000);
+</script>
+</body>
+</html>

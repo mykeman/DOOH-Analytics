@@ -1,0 +1,14 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.venv/
+venv/
+build/
+dist/
+*.db
+*.db-wal
+*.db-shm
+*.onnx
+deploy/server/.env
+snapshot.jpg

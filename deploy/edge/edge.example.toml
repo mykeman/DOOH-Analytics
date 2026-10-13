@@ -1,0 +1,55 @@
+# DOOH edge agent configuration - copy to /etc/dooh-edge/edge.toml
+# Every key is optional; the values shown are the defaults unless noted.
+
+[server]
+# Central server URL and the device key shown once when the screen was created
+# in the dashboard (Screens -> Add a screen). Leave empty to run offline.
+url = "https://analytics.example.com"
+device_key = ""
+upload_interval = 15       # seconds between event uploads
+heartbeat_interval = 30    # seconds between status heartbeats
+config_interval = 300      # seconds between remote config / brand refreshes
+# verify_tls = "/etc/ssl/certs/my-ca.pem"   # custom CA bundle if needed
+
+[camera]
+device = "/dev/video0"     # see: dooh-edge list-cameras
+width = 1280
+height = 720
+fps = 15
+fourcc = "MJPG"            # most UVC cameras only reach 720p+ at 15fps+ in MJPG
+rotate = 0                 # 0, 90, 180, 270 (portrait screens)
+flip = false
+
+[models]
+dir = "/var/lib/dooh-edge/models"
+face = "face_detection_yunet_2023mar.onnx"
+age = "age_googlenet.onnx"          # "" disables age estimation
+gender = "gender_googlenet.onnx"    # "" disables gender estimation
+objects = "object_detection_yolox_2022nov.onnx"   # "" = track faces only (no bags)
+objects_format = "yolox"            # or "yolov8" for an Ultralytics export
+objects_input_size = 640            # 416 or 320 is faster on weak thin clients
+# brand_classifier = "bags.onnx"    # optional custom-trained bag classifier
+# brand_labels = "bags.txt"         # one label per line, "none" for unbranded
+threads = 2
+
+[analytics]
+process_fps = 10
+attention_yaw_deg = 30
+attention_pitch_deg = 25
+# Camera above the screen? People looking at the screen look below the camera.
+# Set this to the pitch measured while looking at the screen centre
+# (enable local_ui.debug_preview to read it off the preview).
+pitch_offset_deg = 0
+min_attention_seconds = 1.0   # attention needed to count as a "viewer"
+min_track_seconds = 0.5
+track_timeout_seconds = 1.5
+
+[storage]
+path = "/var/lib/dooh-edge/outbox.db"
+retention_days = 30
+
+[local_ui]
+enabled = true
+bind = "127.0.0.1"   # use 0.0.0.0 to reach it from the LAN
+port = 8080
+debug_preview = false  # annotated camera preview for installation only

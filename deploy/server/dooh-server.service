@@ -1,0 +1,22 @@
+# Bare-metal alternative to docker-compose. Put settings in /etc/dooh-server/env:
+#   DOOH_DATABASE_URL=postgresql+psycopg://dooh:password@localhost/dooh
+#   DOOH_SECRET_KEY=...
+# and run behind a TLS-terminating reverse proxy (nginx, Caddy).
+[Unit]
+Description=DOOH audience analytics central server
+After=network-online.target postgresql.service
+
+[Service]
+User=dooh
+Group=dooh
+EnvironmentFile=/etc/dooh-server/env
+ExecStart=/opt/dooh-server/venv/bin/dooh-server serve --host 127.0.0.1 --port 8000
+Restart=always
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+StateDirectory=dooh-server
+WorkingDirectory=/var/lib/dooh-server
+
+[Install]
+WantedBy=multi-user.target

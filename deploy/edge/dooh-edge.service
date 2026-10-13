@@ -1,0 +1,27 @@
+[Unit]
+Description=DOOH audience analytics edge agent
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=dooh
+Group=dooh
+SupplementaryGroups=video
+ExecStart=/opt/dooh-edge/venv/bin/dooh-edge --config /etc/dooh-edge/edge.toml run
+Restart=always
+RestartSec=5
+# Keep the thin client responsive for the player software.
+Nice=5
+StateDirectory=dooh-edge
+ConfigurationDirectory=dooh-edge
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/lib/dooh-edge
+DeviceAllow=char-video4linux rw
+Environment=OMP_NUM_THREADS=2
+
+[Install]
+WantedBy=multi-user.target

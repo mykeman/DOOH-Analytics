@@ -1,0 +1,48 @@
+# Central server with PostgreSQL behind Caddy (automatic HTTPS).
+#
+#   cp deploy/server/.env.example deploy/server/.env   # then edit it
+#   docker compose -f deploy/server/docker-compose.yml up -d
+#   docker compose -f deploy/server/docker-compose.yml exec server \
+#       dooh-server create-admin --email you@example.com
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: dooh
+      POSTGRES_USER: dooh
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dooh"]
+      interval: 10s
+
+  server:
+    build:
+      context: ../..
+      dockerfile: deploy/server/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DOOH_DATABASE_URL: postgresql+psycopg://dooh:${POSTGRES_PASSWORD}@db:5432/dooh
+      DOOH_SECRET_KEY: ${DOOH_SECRET_KEY:?set DOOH_SECRET_KEY in .env}
+      DOOH_OFFLINE_AFTER_SECONDS: ${DOOH_OFFLINE_AFTER_SECONDS:-180}
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    command: caddy reverse-proxy --from ${DOOH_DOMAIN:?set DOOH_DOMAIN in .env} --to server:8000
+    volumes:
+      - caddy:/data
+    depends_on:
+      - server
+
+volumes:
+  pgdata:
+  caddy:
